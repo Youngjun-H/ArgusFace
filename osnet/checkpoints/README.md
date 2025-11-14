@@ -1,0 +1,1 @@
+체크포인트 다운로드: https://kaiyangzhou.github.io/deep-person-reid/MODEL_ZOO.html

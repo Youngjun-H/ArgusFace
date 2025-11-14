@@ -1,8 +1,8 @@
 [tool.black]
-line-length = 100
+line-length = 120
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 select = ["E", "F", "W", "I"]   # I = isort rule 포함
 ignore = ["E731"]               # lambda assignment 허용
 
@@ -25,7 +25,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "natsort>=8.4.0",
     "opencv-python>=4.12.0.88",
     "torch>=2.9.1",
+    "torchvision>=0.24.1",
     "ultralytics>=8.3.228",
 ]
