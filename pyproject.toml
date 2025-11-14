@@ -1,3 +1,23 @@
+[tool.black]
+line-length = 100
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "W", "I"]   # I = isort rule 포함
+ignore = ["E731"]               # lambda assignment 허용
+
+[tool.ruff.lint.isort]
+known-third-party = [
+    "torch",
+    "numpy",
+    "cv2",
+    "onnxruntime",
+    "pandas",
+    "PIL"
+]
+combine-as-imports = true
+force-single-line = false
+
 [project]
 name = "argusface"
 version = "0.1.0"
@@ -7,4 +27,5 @@ requires-python = ">=3.12"
 dependencies = [
     "opencv-python>=4.12.0.88",
     "torch>=2.9.1",
+    "ultralytics>=8.3.228",
 ]

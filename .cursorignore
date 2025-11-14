@@ -1,0 +1,65 @@
+# Python
+**/__pycache__/
+**/*.pyc
+
+# Model weights
+**/*.pt
+**/*.pth
+**/*.ckpt
+**/*.safetensors
+**/*.onnx
+**/*.engine
+**/*.plan
+**/*.trt
+**/checkpoints/
+**/weights/
+
+# Media
+**/*.mp4
+**/*.avi
+**/*.mov
+**/*.mkv
+**/*.webm
+**/*.jpg
+**/*.jpeg
+**/*.png
+**/*.bmp
+**/*.tiff
+**/frames/
+**/samples/
+
+# Logs
+**/wandb/
+**/tensorboard/
+**/tb/
+**/*.log
+**/logs/
+
+# Cache
+**/.cache/
+**/cache/
+**/hf_cache/
+**/transformers_cache/
+
+# Outputs
+**/runs/
+**/outputs/
+**/results/
+**/experiments/
+
+# Big binary data
+**/*.npy
+**/*.npz
+**/*.pkl
+
+# Archives
+**/*.zip
+**/*.tar
+**/*.gz
+
+# Keep code folders visible
+!src/
+!scripts/
+!configs/
+!models/**/*.py
+!*.py
