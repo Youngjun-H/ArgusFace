@@ -60,9 +60,7 @@ class TrackletManager:
         """
         if self.async_save:
             try:
-                self.save_queue.put_nowait(
-                    (cam_id, track_id, frame_idx, confidence, width, crop_img)
-                )
+                self.save_queue.put_nowait((cam_id, track_id, frame_idx, confidence, width, crop_img))
             except queue.Full:
                 # 큐가 가득 찬 경우 동기적으로 저장 (드롭 방지)
                 tracklet_dir = f"{self.base_dir}/cam{cam_id}/track_{track_id}"
@@ -81,9 +79,7 @@ class TrackletManager:
         """비동기 저장 완료 대기"""
         if self.async_save:
             try:
-                self.save_queue.put(
-                    (None, None, None, None, None, None), timeout=timeout
-                )  # 종료 신호
+                self.save_queue.put((None, None, None, None, None, None), timeout=timeout)  # 종료 신호
                 # 모든 작업 완료 대기 (timeout 적용)
                 import time
 
@@ -130,8 +126,7 @@ def camera_worker(
     for attempt in range(max_retries):
         try:
             print(
-                f"[Cam {cam_id}] Attempt {attempt + 1}/{max_retries}: "
-                "Trying RTSP connection with default backend..."
+                f"[Cam {cam_id}] Attempt {attempt + 1}/{max_retries}: " "Trying RTSP connection with default backend..."
             )
 
             # 기본 백엔드를 먼저 시도 (Cam 1이 성공한 방법)
@@ -291,6 +286,10 @@ def camera_worker(
                 # crop 이미지의 가로 사이즈 (너비)
                 crop_width = crop.shape[1]
 
+                # 가로 사이즈가 45 이하인 경우 저장하지 않음 (너무 작은 detection 필터링)
+                if crop_width <= 45:
+                    continue
+
                 # Save crop with confidence and width in filename
                 tracklet_manager.save_crop(
                     cam_id=cam_id,
@@ -344,8 +343,8 @@ def camera_worker(
 def main():
     # 각 카메라별로 별도의 YOLO 모델 인스턴스 생성 (thread-safe)
     # 같은 모델 인스턴스를 공유하면 tracking 상태가 충돌할 수 있음
-    model_cam0 = YOLO("yolo11x.pt")
-    model_cam1 = YOLO("yolo11x.pt")
+    model_cam0 = YOLO("yolo11n.pt")
+    model_cam1 = YOLO("yolo11n.pt")
 
     # Tracklet manager (비동기 저장 활성화)
     manager = TrackletManager("tracklets", async_save=True, queue_size=100)
