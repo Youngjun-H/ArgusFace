@@ -104,6 +104,9 @@ def lr_map_x(cam0_cx_norm: float) -> float:
 
 
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
+    # 1D 배열로 변환 (shape이 (1, D) 또는 (D,) 모두 처리)
+    a = a.flatten()
+    b = b.flatten()
     denom = (np.linalg.norm(a) * np.linalg.norm(b)) + 1e-12
     return float(np.dot(a, b) / denom)
 

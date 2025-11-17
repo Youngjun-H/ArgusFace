@@ -12,7 +12,8 @@ project_root = Path(__file__).parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from osnet import OSNetFeatureExtractor, compute_pairwise_similarity
+from osnet import (OSNetFeatureExtractor,  # noqa: E402
+                   compute_pairwise_similarity)
 
 
 def ensure_dir(path: str):
