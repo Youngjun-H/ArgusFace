@@ -1,8 +1,9 @@
 import csv
 import os
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
+import cv2
 import numpy as np
 
 
@@ -111,6 +112,92 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / denom)
 
 
+def get_track_representative_image(
+    tracklets_base_dir: str, segments_base_dir: Optional[str], cam: str, track: str
+) -> Optional[np.ndarray]:
+    """
+    track의 대표 이미지를 가져옴
+    1. segments가 있으면 seg_000_best.jpg 우선 사용
+    2. 없으면 tracklets에서 첫 번째 이미지 사용
+
+    Returns:
+        이미지 (BGR) 또는 None
+    """
+    # 1. segments에서 찾기
+    if segments_base_dir:
+        seg_path = os.path.join(segments_base_dir, cam, track, "seg_000_best.jpg")
+        if os.path.exists(seg_path):
+            img = cv2.imread(seg_path)
+            if img is not None:
+                return img
+
+    # 2. tracklets에서 첫 번째 이미지 찾기
+    tracklet_dir = os.path.join(tracklets_base_dir, cam, track)
+    if not os.path.isdir(tracklet_dir):
+        return None
+
+    # 이미지 파일 찾기
+    image_files = sorted([f for f in os.listdir(tracklet_dir) if f.lower().endswith((".jpg", ".jpeg", ".png"))])
+    if not image_files:
+        return None
+
+    first_img_path = os.path.join(tracklet_dir, image_files[0])
+    img = cv2.imread(first_img_path)
+    return img
+
+
+def save_matched_pair_image(
+    img0: np.ndarray,
+    img1: np.ndarray,
+    output_dir: str,
+    cam0_track: str,
+    cam1_track: str,
+    sim: float,
+    match_idx: int,
+):
+    """
+    두 이미지를 나란히 붙여서 저장
+
+    Args:
+        img0: cam0 이미지
+        img1: cam1 이미지
+        output_dir: 출력 디렉토리
+        cam0_track: cam0 track 이름
+        cam1_track: cam1 track 이름
+        sim: similarity 점수
+        match_idx: 매칭 인덱스
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    # 두 이미지의 높이를 맞춤 (더 큰 높이에 맞춤)
+    h0, w0 = img0.shape[:2]
+    h1, w1 = img1.shape[:2]
+    max_h = max(h0, h1)
+
+    # 높이 맞추기 (비율 유지하며 리사이즈)
+    if h0 != max_h:
+        scale = max_h / h0
+        new_w0 = int(w0 * scale)
+        img0 = cv2.resize(img0, (new_w0, max_h))
+    if h1 != max_h:
+        scale = max_h / h1
+        new_w1 = int(w1 * scale)
+        img1 = cv2.resize(img1, (new_w1, max_h))
+
+    # 두 이미지를 가로로 붙이기
+    combined = np.hstack([img0, img1])
+
+    # 텍스트 추가 (선택사항)
+    h, w = combined.shape[:2]
+    text = f"{cam0_track} <-> {cam1_track} | sim={sim:.3f}"
+    cv2.putText(combined, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+    # 파일명: match_001_cam0_track_1_cam1_track_3_sim0.711.jpg
+    filename = f"match_{match_idx:03d}_{cam0_track}_{cam1_track}_sim{sim:.3f}.jpg"
+    output_path = os.path.join(output_dir, filename)
+    cv2.imwrite(output_path, combined)
+
+
 @dataclass
 class MatchCandidate:
     cam0_track: str
@@ -174,9 +261,9 @@ def cross_camera_match(
             dy = abs(mapped_cy0 - meta1.cy_norm)
 
             # 거리 기준 (단순 L-infinity 혹은 L2 사용 가능)
-            spatial_dist = max(dx, dy)
-            if spatial_dist > spatial_threshold:
-                continue
+            # spatial_dist = max(dx, dy)
+            # if spatial_dist > spatial_threshold:
+            #     continue
 
             # 3) Embedding similarity 조건
             sim = cosine_similarity(emb0, emb1)
@@ -210,15 +297,33 @@ if __name__ == "__main__":
     matches = cross_camera_match(
         meta_dict,
         emb_dict,
-        time_window_sec=1.0,
+        time_window_sec=10.0,
         spatial_threshold=0.2,
-        sim_threshold=0.55,
+        sim_threshold=0.5,
     )
 
-    # 3) 결과 출력
+    # 3) 결과 출력 및 매칭 이미지 저장
     print("==== Cross-camera match candidates ====")
-    for m in matches:
+    output_match_dir = "match_results"
+    os.makedirs(output_match_dir, exist_ok=True)
+
+    tracklets_base_dir = "tracklets"
+    segments_base_dir = "segments" if os.path.exists("segments") else None
+
+    for idx, m in enumerate(matches, 1):
         print(
             f"cam0/{m.cam0_track}  <-->  cam1/{m.cam1_track} | "
             f"sim={m.sim:.3f}, dt={m.dt:.2f}s, dx={m.dx:.3f}, dy={m.dy:.3f}"
         )
+
+        # 매칭된 이미지 가져오기
+        img0 = get_track_representative_image(tracklets_base_dir, segments_base_dir, "cam0", m.cam0_track)
+        img1 = get_track_representative_image(tracklets_base_dir, segments_base_dir, "cam1", m.cam1_track)
+
+        if img0 is not None and img1 is not None:
+            save_matched_pair_image(img0, img1, output_match_dir, m.cam0_track, m.cam1_track, m.sim, idx)
+            print(f"  -> Saved: match_{idx:03d}_{m.cam0_track}_{m.cam1_track}_sim{m.sim:.3f}.jpg")
+        else:
+            print(f"  -> Warning: Could not load images for {m.cam0_track} or {m.cam1_track}")
+
+    print(f"\n[INFO] Total {len(matches)} matches found. Images saved to: {output_match_dir}/")

@@ -12,8 +12,9 @@ project_root = Path(__file__).parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from osnet import (OSNetFeatureExtractor,  # noqa: E402
-                   compute_pairwise_similarity)
+from osnet import OSNetFeatureExtractor  # noqa: E402
+from osnet import compute_pairwise_similarity
+from solider import SOLIDEREmbeddingExtractor
 
 
 def ensure_dir(path: str):
@@ -48,6 +49,15 @@ def extract_embeddings_for_segments(
         model_name="osnet_ain_x1_0",
         model_path="/home/yjhwang/work/argusface/osnet/checkpoints/osnet_ain_x1_0_msmt17.pth",  # update path
         device="cuda",
+    )
+
+    solider_extractor = SOLIDEREmbeddingExtractor(
+        model_path="/home/yjhwang/work/argusface/solider/checkpoints/swin_base_msmt17.pth",
+        config_path="models/solider/configs/msmt17/swin_base.yml",
+        device="cuda",
+        semantic_weight=0.2,
+        image_size=(384, 128),
+        normalize_features=True,
     )
 
     for cam_name in natsorted(os.listdir(segments_base_dir)):
@@ -87,6 +97,11 @@ def extract_embeddings_for_segments(
 
                 # ReID embedding 추출
                 emb = extractor(img)  # (D,)
+                # emb = solider_extractor.extract_embedding(img)  # numpy array 반환
+
+                # numpy 배열을 텐서로 변환 (torch.stack을 위해)
+                if isinstance(emb, np.ndarray):
+                    emb = torch.from_numpy(emb).to(device)
 
                 # segment-level embedding 저장
                 np.save(seg_npy_path, emb.cpu().numpy())
@@ -116,9 +131,7 @@ def extract_embeddings_for_segments(
             out_tracklet_path = os.path.join(out_tracklet_dir, track_name + ".npy")
             np.save(out_tracklet_path, centroid)
 
-            print(
-                f"  [TRACK CENTROID] {cam_name}/{track_name} -> {out_tracklet_path}, shape={centroid.shape}"
-            )
+            print(f"  [TRACK CENTROID] {cam_name}/{track_name} -> {out_tracklet_path}, shape={centroid.shape}")
 
 
 # ============================================================
@@ -134,6 +147,6 @@ if __name__ == "__main__":
     """
     extract_embeddings_for_segments(
         segments_base_dir="segments",
-        output_tracklet_embedding_dir="track_embeddings",
+        output_tracklet_embedding_dir="track_embeddings_osnet",
         device="cuda",  # cuda / cpu 중 선택
     )
